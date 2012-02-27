@@ -1,0 +1,23 @@
+Usage:
+    excel2csv [options] [file ...]
+
+     Options:
+       -help            brief help message
+       -man             full documentation
+       -filename        name of the excel file to convert
+       -directory       directory in which to write the csv files (defaults to working dir)
+
+Options:
+    -help   Print a brief help message and exits.
+
+    -man    Prints the manual page and exits.
+
+    -filename
+            The name of the excel file you wish to convert
+
+    -directory
+            The directory in which you want the csv files to be created
+            Defaults to the current working directory
+
+    -xlsx   Is this a newer (2007+) .xlsx formatted file? Defaults to false
+
