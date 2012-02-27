@@ -1,0 +1,134 @@
+#!/usr/bin/env perl
+
+# This script uses the Spreadsheet::ParseExcel module
+# and attempts to parse and excel spreadsheet, outputing
+# a single csv file per worksheet. 
+
+
+use strict;
+use warnings;
+use Spreadsheet::ParseExcel;
+use Spreadsheet::XLSX;
+use Getopt::Long;
+use Pod::Usage;
+use IO::File;
+
+my $filename;
+my $dir      = '.';
+my $xlsx     = 0;
+my $help     = 0;
+my $man      = 0;
+my $result = GetOptions ("filename|f=s" => \$filename,
+                         "dir|d=s"      => \$dir,
+                         "xlsx|x"       => \$xlsx,
+                         "help|?"       => \$help,
+                         "man"          => \$man
+                        ) or pod2usage(2);
+
+pod2usage(1) if $help;
+pod2usage(-exitstatus => 0, -verbose => 2) if $man;
+pod2usage(-exitstatus => 1) unless $filename;
+
+die "File $filename not found" unless -e $filename;
+die "File $filename not readable" unless -r $filename;
+
+die "Dir not found" unless -d $dir;
+die "Dir not writeable" unless -w $dir;
+
+
+my $workbook;
+if($xlsx){
+  $workbook = Spreadsheet::XLSX->new($filename);
+} else{
+  my $parser = Spreadsheet::ParseExcel->new();
+  $workbook = $parser->Parse($filename);
+}
+
+die "Failed to parse" unless $workbook;
+
+for my $worksheet ( $workbook->worksheets() ) {
+
+  my $name = $worksheet->{Name};
+  $name =~s/ /_/g;
+  my $outfile = "$dir/$name.csv";
+
+  my ( $row_min, $row_max ) = $worksheet->row_range();
+  my ( $col_min, $col_max ) = $worksheet->col_range();
+
+  next unless ($row_max>0 && $col_max>0);
+
+  my $fh = new IO::File;
+  $fh->open("> $outfile") or die "Can't open $outfile for writing: $!";
+
+  for my $row ( $row_min .. $row_max ) {
+    my @row;
+    for my $col ( $col_min .. $col_max ) {
+      my $cell = $worksheet->get_cell( $row, $col );
+      my $value = $cell ? $cell->unformatted() : '';
+      $value = '"'.$value.'"' if ($cell && ($cell->{Type} eq 'Text'));
+      push @row, $value;
+    }
+    print $fh join ",", @row;
+    print $fh "\n";
+  }
+
+  $fh->close;
+}
+
+__END__
+
+=head1 NAME
+
+excel2csv - convert excel workbooks to csv files
+
+=head1 SYNOPSIS
+
+excel2csv [options] [file ...]
+
+ Options:
+   -help            brief help message
+   -man             full documentation
+   -filename        name of the excel file to convert
+   -directory       directory in which to write the csv files (defaults to working dir)
+
+=head1 OPTIONS
+
+=over 8
+
+=item B<-help>
+
+Print a brief help message and exits.
+
+=item B<-man>
+
+Prints the manual page and exits.
+
+=item B<-filename>
+
+The name of the excel file you wish to convert
+
+=item B<-directory>
+
+The directory in which you want the csv files to be created
+Defaults to the current working directory
+
+=item B<-xlsx>
+
+Is this a newer (2007+) .xlsx formatted file? 
+Defaults to false
+
+=back
+
+=head1 DESCRIPTION
+
+B<excel2csv> will read an excel workbook and attempt to parse each of its worksheets
+into a csv file. 
+
+This is intended to work on very basic spreadsheets that are essentially just tables.
+If you have a lot of complex forumlae or macros it is likely to fail
+
+=head1 EXAMPLE
+
+/share/apps/excel2csv/bin/excel2csv -f /scratch/data/GenADA/Genada\ Clinical\ Summary\ Spreadsheet.xlsx -d test/ -x
+
+=cut
